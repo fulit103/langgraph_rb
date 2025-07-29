@@ -1,0 +1,9 @@
+# Gem artifacts
+*.gem
+
+# Other common Ruby ignores
+.bundle/
+vendor/bundle/
+.ruby-version
+.byebug_history
+coverage/
