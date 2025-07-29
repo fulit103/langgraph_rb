@@ -3,8 +3,8 @@ require_relative 'lib/langgraph_rb/version'
 Gem::Specification.new do |spec|
   spec.name          = "langgraph_rb"
   spec.version       = LangGraphRB::VERSION
-  spec.authors       = ["Your Name"]
-  spec.email         = ["your.email@example.com"]
+  spec.authors       = ["Julian Toro"]
+  spec.email         = ["fulit103@gmail.com"]
 
   spec.summary       = "A Ruby library for building stateful, multi-actor applications with directed graphs"
   spec.description   = <<~DESC
@@ -12,7 +12,7 @@ Gem::Specification.new do |spec|
     using directed graphs. It provides a framework for orchestrating complex workflows with support for 
     parallel execution, checkpointing, human-in-the-loop interactions, and map-reduce operations.
   DESC
-  spec.homepage      = "https://github.com/yourusername/langgraph_rb"
+  spec.homepage      = "https://github.com/fulit103/langgraph_rb"
   spec.license       = "MIT"
   spec.required_ruby_version = ">= 3.0.0"
 
