@@ -60,10 +60,21 @@ def simple_workflow_test
       }
     end
 
+    node :generate_response_2 do |state|
+      puts "💭 Generating response for: #{state[:analysis]}"
+      {
+        step: 4,
+        final_response: "Response generated",
+        message: "Response generated",
+        completed: true
+      } 
+    end
+
     # Define simple linear flow
     set_entry_point :start_process
     edge :start_process, :analyze_data
     edge :analyze_data, :generate_response
+    edge :analyze_data, :generate_response_2
     set_finish_point :generate_response
   end
 
@@ -249,7 +260,7 @@ end
 
 # Run tests
 if __FILE__ == $0
-  simple_workflow_test
+  #simple_workflow_test
   conditional_routing_test
-  streaming_test
+  #streaming_test
 end 

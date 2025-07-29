@@ -2,37 +2,37 @@
 
 require_relative '../lib/langgraph_rb'
 
+# Mock research tools
+class MockSearchTool
+  def self.call(query)
+    puts "  🔍 Searching for: #{query}"
+    sleep(0.3)  # Simulate API call
+    {
+      results: [
+        "Result 1 for #{query}: Important finding about #{query}",
+        "Result 2 for #{query}: Another insight on #{query}",
+        "Result 3 for #{query}: #{query} research conclusion"
+      ],
+      source: "MockSearch"
+    }
+  end
+end
+
+class MockSummarizer
+  def self.call(content)
+    puts "  📝 Summarizing content..."
+    sleep(0.2)
+    {
+      summary: "Summary: #{content[:results]&.first&.slice(0, 50)}...",
+      word_count: content[:results]&.join(' ')&.length || 0
+    }
+  end
+end
+
 # Example: Research assistant with parallel processing
 def research_assistant_example
   puts "=== Advanced Research Assistant Example ==="
   
-  # Mock research tools
-  class MockSearchTool
-    def self.call(query)
-      puts "  🔍 Searching for: #{query}"
-      sleep(0.3)  # Simulate API call
-      {
-        results: [
-          "Result 1 for #{query}: Important finding about #{query}",
-          "Result 2 for #{query}: Another insight on #{query}",
-          "Result 3 for #{query}: #{query} research conclusion"
-        ],
-        source: "MockSearch"
-      }
-    end
-  end
-  
-  class MockSummarizer
-    def self.call(content)
-      puts "  📝 Summarizing content..."
-      sleep(0.2)
-      {
-        summary: "Summary: #{content[:results]&.first&.slice(0, 50)}...",
-        word_count: content[:results]&.join(' ')&.length || 0
-      }
-    end
-  end
-
   # Create graph with parallel processing
   graph = LangGraphRB::Graph.new do
     # Entry point - process research request
@@ -120,7 +120,7 @@ def research_assistant_example
       }
     end
 
-    # Human review checkpoint
+    # Human review checkpoint (simplified for demo)
     node :request_human_review do |state|
       puts "👤 Requesting human review of research..."
       
@@ -131,11 +131,14 @@ def research_assistant_example
         timestamp: Time.now
       }
       
-      # Return an interrupt to pause for human input
-      LangGraphRB::Commands.interrupt(
-        message: "Please review the research findings. Type 'approve' to continue or 'revise' to request changes.",
-        data: review_data
-      )
+      puts "   📋 Review data prepared"
+      puts "   🤖 Auto-approving for demo (in real app, this would wait for human input)"
+      
+      # Instead of interrupting, automatically approve for demo
+      {
+        review_data: review_data,
+        human_feedback: 'approve'  # Simulate human approval
+      }
     end
 
     # Process human feedback
@@ -214,14 +217,12 @@ def research_assistant_example
   puts graph.to_mermaid
   puts
   
-  # Set up persistence
+  # Set up persistence (this will be handled by the graph's stream method)
   store = LangGraphRB::Stores::InMemoryStore.new
   thread_id = "research_#{SecureRandom.hex(4)}"
   
-  # Create runner and set interrupt handler
-  runner = LangGraphRB::Runner.new(graph, store: store, thread_id: thread_id)
-  
-  runner.on_interrupt do |interrupt|
+  # Define interrupt handler for human-in-the-loop
+  interrupt_handler = proc do |interrupt|
     puts "\n⏸️  EXECUTION PAUSED"
     puts "   Message: #{interrupt.message}"
     puts "   Data: #{interrupt.data.keys.inspect}"
@@ -233,19 +234,25 @@ def research_assistant_example
     { human_feedback: 'approve' }  # Return the human input
   end
   
-  # Run the research assistant
+  # Run the research assistant using graph's stream method
   puts "🚀 Starting research assistant..."
   
-  result = runner.stream({
+  result = graph.stream({
     query: "artificial intelligence and machine learning trends"
-  }) do |step_result|
+  }, store: store, thread_id: thread_id) do |step_result|
     puts "  📊 Step #{step_result[:step]}: #{step_result[:active_nodes].inspect}"
     puts "     Completed: #{step_result[:completed]}"
+    
+    # Handle interrupts
+    if step_result[:interrupted]
+      user_input = interrupt_handler.call(step_result[:interrupt])
+      # Resume with user input - this would be handled differently in a real implementation
+    end
   end
   
   puts "\n✅ Research completed!"
-  puts "Final report ID: #{result[:state][:final_report][:report_id]}"
-  puts "Thread ID: #{result[:thread_id]} (can be used to resume if needed)"
+  puts "Final report ID: #{result[:state][:final_report][:report_id]}" if result[:state][:final_report]
+  puts "Thread ID: #{thread_id} (can be used to resume if needed)"
   
   # Show checkpoints
   puts "\n📚 Execution checkpoints:"
