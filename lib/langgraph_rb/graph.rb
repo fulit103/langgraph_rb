@@ -96,7 +96,7 @@ module LangGraphRB
     end
 
     # Execute the graph synchronously
-    def invoke(input_state = {}, context: nil, store: nil, thread_id: nil)
+    def invoke(input_state = {}, context: nil, store: nil, thread_id: nil, observers: [])
       raise GraphError, "Graph must be compiled before execution" unless compiled?
       
       store ||= Stores::InMemoryStore.new
@@ -104,11 +104,12 @@ module LangGraphRB
       
       initial_state = @state_class.new(input_state)
       
-      Runner.new(self, store: store, thread_id: thread_id).invoke(initial_state, context: context)
+      Runner.new(self, store: store, thread_id: thread_id, observers: observers)
+        .invoke(initial_state, context: context)
     end
 
     # Stream execution results
-    def stream(input_state = {}, context: nil, store: nil, thread_id: nil)
+    def stream(input_state = {}, context: nil, store: nil, thread_id: nil, observers: [])
       raise GraphError, "Graph must be compiled before execution" unless compiled?
       
       store ||= Stores::InMemoryStore.new
@@ -116,7 +117,8 @@ module LangGraphRB
       
       initial_state = @state_class.new(input_state)
       
-      Runner.new(self, store: store, thread_id: thread_id).stream(initial_state, context: context)
+      Runner.new(self, store: store, thread_id: thread_id, observers: observers)
+        .stream(initial_state, context: context)
     end
 
     # Resume execution from a checkpoint
