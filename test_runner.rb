@@ -67,18 +67,18 @@ routing_graph = LangGraphRB::Graph.new do
     { message: "Number #{state[:number]} is positive!" }
   end
   
-  node :negative_handler do |state|
+  node :generate_sql do |state|
     { message: "Number #{state[:number]} is negative or zero!" }
   end
   
   set_entry_point :check_number
   
   conditional_edge :check_number, ->(state) {
-    state[:is_positive] ? :positive_handler : :negative_handler
+    state[:is_positive] ? :positive_handler : :generate_sql
   }
   
   set_finish_point :positive_handler
-  set_finish_point :negative_handler
+  set_finish_point :generate_sql
 end
 
 routing_graph.compile!
