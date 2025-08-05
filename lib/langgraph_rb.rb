@@ -6,10 +6,14 @@ require_relative 'langgraph_rb/command'
 require_relative 'langgraph_rb/graph'
 require_relative 'langgraph_rb/runner'
 require_relative 'langgraph_rb/stores/memory'
+require_relative 'langgraph_rb/observers/base'
+require_relative 'langgraph_rb/observers/logger'
+require_relative 'langgraph_rb/observers/structured'
 
 module LangGraphRB
   class Error < StandardError; end
   class GraphError < Error; end
   class NodeError < Error; end
   class StateError < Error; end
+  class ObserverError < Error; end
 end 

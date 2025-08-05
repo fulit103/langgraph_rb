@@ -1,16 +1,19 @@
 require 'thread'
+require 'json'
+require 'time'
 
 module LangGraphRB
   class Runner
     attr_reader :graph, :store, :thread_id
 
-    def initialize(graph, store:, thread_id:)
+    def initialize(graph, store:, thread_id:, observers: [])
       @graph = graph
       @store = store
       @thread_id = thread_id
       @step_number = 0
       @execution_queue = Queue.new
       @interrupt_handler = nil
+      @observers = Array(observers)
     end
 
     # Synchronous execution
@@ -26,6 +29,8 @@ module LangGraphRB
 
     # Streaming execution with optional block for receiving intermediate results
     def stream(initial_state, context: nil, &block)
+      notify_graph_start(initial_state, context)
+      
       @step_number = 0
       current_state = initial_state
       
@@ -124,11 +129,17 @@ module LangGraphRB
         break if final_state
       end
       
-      {
+      result = {
         state: current_state,
         step_number: @step_number,
         thread_id: @thread_id
       }
+      
+      notify_graph_end(current_state)
+      result
+    rescue => error
+      notify_graph_end(current_state || initial_state)
+      raise
     end
 
     # Resume from checkpoint
@@ -149,6 +160,79 @@ module LangGraphRB
     end
 
     private
+
+    def notify_observers(method, event)
+      @observers.each do |observer|
+        begin
+          observer.send(method, event)
+        rescue => e
+          # Log observer errors but don't fail execution
+          $stderr.puts "Observer error in #{observer.class}##{method}: #{e.message}"
+        end
+      end
+    end
+
+    def notify_graph_start(initial_state, context)
+      event = Observers::GraphEvent.new(
+        type: :start,
+        graph: @graph,
+        initial_state: initial_state,
+        context: context,
+        thread_id: @thread_id
+      )
+      notify_observers(:on_graph_start, event)
+    end
+
+    def notify_graph_end(final_state)
+      event = Observers::GraphEvent.new(
+        type: :end,
+        graph: @graph,
+        initial_state: final_state,
+        thread_id: @thread_id
+      )
+      notify_observers(:on_graph_end, event)
+    end
+
+    def notify_node_start(node, state, context)
+      event = Observers::NodeEvent.new(
+        type: :start,
+        node_name: node.name,
+        node_class: node.class,
+        state_before: state,
+        context: context,
+        thread_id: @thread_id,
+        step_number: @step_number
+      )
+      notify_observers(:on_node_start, event)
+    end
+
+    def notify_node_end(node, state_before, state_after, result, duration)
+      event = Observers::NodeEvent.new(
+        type: :end,
+        node_name: node.name,
+        node_class: node.class,
+        state_before: state_before,
+        state_after: state_after,
+        result: result,
+        duration: duration,
+        thread_id: @thread_id,
+        step_number: @step_number
+      )
+      notify_observers(:on_node_end, event)
+    end
+
+    def notify_node_error(node, state, error)
+      event = Observers::NodeEvent.new(
+        type: :error,
+        node_name: node.name,
+        node_class: node.class,
+        state_before: state,
+        error: error,
+        thread_id: @thread_id,
+        step_number: @step_number
+      )
+      notify_observers(:on_node_error, event)
+    end
 
     # Execute all nodes in the current super-step in parallel
     def execute_super_step(active_executions, context)
@@ -184,10 +268,29 @@ module LangGraphRB
 
     # Safely execute a single node
     def execute_node_safely(node, state, context, step)
+      notify_node_start(node, state, context)
+      
+      start_time = Time.now
       begin
         result = node.call(state, context: context)
-        process_node_result(node.name, state, result, step)
+        duration = Time.now - start_time
+        
+        processed_result = process_node_result(node.name, state, result, step)
+        
+        # Extract final state from processed result
+        final_state = case processed_result[:type]
+                     when :completed
+                       processed_result[:state]
+                     else
+                       state
+                     end
+        
+        notify_node_end(node, state, final_state, result, duration)
+        processed_result
       rescue => error
+        duration = Time.now - start_time
+        notify_node_error(node, state, error)
+        
         {
           type: :error,
           node_name: node.name,

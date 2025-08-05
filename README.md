@@ -347,4 +347,4 @@ The gem is available as open source under the terms of the [MIT License](https:/
 - [ ] Performance optimizations
 - [ ] More comprehensive test suite
 - [ ] Integration with Sidekiq for background processing
-- [ ] Metrics and observability features 
+- [x] Metrics and observability features
