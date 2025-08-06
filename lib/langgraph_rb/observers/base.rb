@@ -117,11 +117,11 @@ module LangGraphRB
 
     class NodeEvent
       attr_reader :type, :node_name, :node_class, :state_before, :state_after, 
-                  :context, :thread_id, :step_number, :duration, :error, :result, :timestamp
+                  :context, :thread_id, :step_number, :duration, :error, :result, :timestamp, :from_node
 
       def initialize(type:, node_name:, node_class: nil, state_before: nil, state_after: nil,
                      context: nil, thread_id: nil, step_number: nil, duration: nil, 
-                     error: nil, result: nil)
+                     error: nil, result: nil, from_node: nil)
         @type = type
         @node_name = node_name
         @node_class = node_class
@@ -133,6 +133,7 @@ module LangGraphRB
         @duration = duration
         @error = error
         @result = result
+        @from_node = from_node
         @timestamp = Time.now.utc
       end
 
@@ -141,6 +142,7 @@ module LangGraphRB
           type: @type,
           node_name: @node_name,
           node_class: @node_class&.name,
+          from_node: @from_node,
           state_before: @state_before,
           state_after: @state_after,
           context: @context,
