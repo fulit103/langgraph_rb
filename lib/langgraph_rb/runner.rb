@@ -64,7 +64,7 @@ module LangGraphRB
               if dest_name == Graph::FINISH
                 final_state = dest_state
               else
-                next_active << ExecutionFrame.new(dest_name, dest_state, @step_number)
+                next_active << ExecutionFrame.new(dest_name, dest_state, @step_number, from_node: result[:node_name])
               end
             else
               # Use normal edge routing
@@ -78,7 +78,7 @@ module LangGraphRB
                 if dest_name == Graph::FINISH
                   final_state = dest_state
                 else
-                  next_active << ExecutionFrame.new(dest_name, dest_state, @step_number)
+                  next_active << ExecutionFrame.new(dest_name, dest_state, @step_number, from_node: result[:node_name])
                 end
               end
             end
@@ -87,7 +87,7 @@ module LangGraphRB
             # Handle Send commands (map-reduce)
             result[:sends].each do |send_cmd|
               payload_state = result[:state].merge_delta(send_cmd.payload)
-              next_active << ExecutionFrame.new(send_cmd.to, payload_state, @step_number)
+              next_active << ExecutionFrame.new(send_cmd.to, payload_state, @step_number, from_node: result[:node_name])
             end
             
           when :interrupt
@@ -96,7 +96,7 @@ module LangGraphRB
               user_input = @interrupt_handler.call(result[:interrupt])
               # Continue with user input merged into state
               updated_state = result[:state].merge_delta(user_input || {})
-              next_active << ExecutionFrame.new(result[:node_name], updated_state, @step_number)
+              next_active << ExecutionFrame.new(result[:node_name], updated_state, @step_number, from_node: result[:node_name])
             else
               # No interrupt handler, treat as completion
               final_state = result[:state]
@@ -193,7 +193,7 @@ module LangGraphRB
       notify_observers(:on_graph_end, event)
     end
 
-    def notify_node_start(node, state, context)
+    def notify_node_start(node, state, context, from_node: nil)
       event = Observers::NodeEvent.new(
         type: :start,
         node_name: node.name,
@@ -201,12 +201,13 @@ module LangGraphRB
         state_before: state,
         context: context,
         thread_id: @thread_id,
-        step_number: @step_number
+        step_number: @step_number,
+        from_node: from_node
       )
       notify_observers(:on_node_start, event)
     end
 
-    def notify_node_end(node, state_before, state_after, result, duration)
+    def notify_node_end(node, state_before, state_after, result, duration, from_node: nil)
       event = Observers::NodeEvent.new(
         type: :end,
         node_name: node.name,
@@ -216,12 +217,13 @@ module LangGraphRB
         result: result,
         duration: duration,
         thread_id: @thread_id,
-        step_number: @step_number
+        step_number: @step_number,
+        from_node: from_node
       )
       notify_observers(:on_node_end, event)
     end
 
-    def notify_node_error(node, state, error)
+    def notify_node_error(node, state, error, from_node: nil)
       event = Observers::NodeEvent.new(
         type: :error,
         node_name: node.name,
@@ -229,7 +231,8 @@ module LangGraphRB
         state_before: state,
         error: error,
         thread_id: @thread_id,
-        step_number: @step_number
+        step_number: @step_number,
+        from_node: from_node
       )
       notify_observers(:on_node_error, event)
     end
@@ -251,7 +254,7 @@ module LangGraphRB
         # Execute each frame for this node
         executions.each do |frame|
           thread = Thread.new do
-            execute_node_safely(node, frame.state, context, frame.step)
+            execute_node_safely(node, frame.state, context, frame.step, from_node: frame.from_node)
           end
           threads << thread
         end
@@ -267,8 +270,8 @@ module LangGraphRB
     end
 
     # Safely execute a single node
-    def execute_node_safely(node, state, context, step)
-      notify_node_start(node, state, context)
+    def execute_node_safely(node, state, context, step, from_node: nil)
+      notify_node_start(node, state, context, from_node: from_node)
       
       start_time = Time.now
       begin
@@ -285,11 +288,11 @@ module LangGraphRB
                        state
                      end
         
-        notify_node_end(node, state, final_state, result, duration)
+        notify_node_end(node, state, final_state, result, duration, from_node: from_node)
         processed_result
       rescue => error
         duration = Time.now - start_time
-        notify_node_error(node, state, error)
+        notify_node_error(node, state, error, from_node: from_node)
         
         {
           type: :error,
@@ -421,16 +424,17 @@ module LangGraphRB
 
     # Execution frame for tracking active node executions
     class ExecutionFrame
-      attr_reader :node_name, :state, :step
+      attr_reader :node_name, :state, :step, :from_node
 
-      def initialize(node_name, state, step)
+      def initialize(node_name, state, step, from_node: nil)
         @node_name = node_name.to_sym
         @state = state
         @step = step
+        @from_node = from_node
       end
 
       def to_s
-        "#<ExecutionFrame node: #{@node_name}, step: #{@step}>"
+        "#<ExecutionFrame node: #{@node_name}, step: #{@step}, from: #{@from_node}>"
       end
     end
   end
