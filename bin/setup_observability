@@ -1,0 +1,4 @@
+#!/usr/bin/env ruby
+require_relative '../lib/langgraph/observability/config'
+Langgraph::Observability.configure {}
+puts 'Observability configured'

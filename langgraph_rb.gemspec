@@ -33,6 +33,9 @@ Gem::Specification.new do |spec|
 
   # Runtime dependencies
   spec.add_dependency "json", "~> 2.0"
+  spec.add_dependency "activesupport", ">= 7.0"
+  spec.add_dependency "opentelemetry-sdk", "~> 1.0"
+  spec.add_dependency "prometheus-client", "~> 4.0"
 
   # Development dependencies
   spec.add_development_dependency "bundler", "~> 2.0"
