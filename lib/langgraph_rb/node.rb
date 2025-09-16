@@ -11,7 +11,7 @@ module LangGraphRB
 
     # Execute the node with the given state and context
     # Returns either a Hash (state delta), Command, or Send object
-    def call(state, context: nil)
+    def call(state, context: nil, observers: [])
       case @callable.arity
       when 0
         @callable.call

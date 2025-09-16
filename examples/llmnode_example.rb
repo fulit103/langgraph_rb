@@ -52,7 +52,7 @@ class MockLLMClient
     end
 
     def log_llm_request(data)
-        @observer&.each do |observer|
+        @observers&.each do |observer|
             observer.on_llm_request(data, @node_name)
         end
     end
