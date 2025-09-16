@@ -40,27 +40,41 @@ module LangGraphRB
     def initialize(name, llm_client:, system_prompt: nil, &block)
       @llm_client = llm_client
       @system_prompt = system_prompt
-      
-      super(name, &block)
+
+      # Use default LLM behavior if no custom block provided
+      super(name, &(block || method(:default_llm_call)))
     end
 
     def call(state, context: nil)
-      # If no custom block provided, use default LLM behavior
-      if @callable.nil? || @callable == method(:default_llm_call)
-        default_llm_call(state, context)
+      # Auto-inject LLM config into the context for both default and custom blocks
+      merged_context = (context || {}).merge(
+        llm_client: @llm_client,
+        system_prompt: @system_prompt
+      )
+
+      # Delegate to Node's dispatcher so arity (0/1/2) is handled uniformly
+      case @callable.arity
+      when 0
+        @callable.call
+      when 1
+        @callable.call(state)
       else
-        super(state, context: context)
+        @callable.call(state, merged_context)
       end
+    rescue => e
+      raise NodeError, "Error executing node '#{@name}': #{e.message}"
     end
 
     private
 
     def default_llm_call(state, context)
       messages = state[:messages] || []
-      messages = [@system_prompt] + messages if @system_prompt && !messages.empty?
-      
-      response = @llm_client.call(messages)
-      
+      if context && context[:system_prompt]
+        messages = [{ role: 'system', content: context[:system_prompt] }] + messages
+      end
+
+      response = (context[:llm_client] || @llm_client).call(messages)
+
       {
         messages: [{ role: 'assistant', content: response }],
         last_response: response
