@@ -275,7 +275,7 @@ module LangGraphRB
       
       start_time = Time.now
       begin
-        result = node.call(state, context: context)
+        result = node.call(state, context: context, observers: @observers)
         duration = Time.now - start_time
         
         processed_result = process_node_result(node.name, state, result, step)

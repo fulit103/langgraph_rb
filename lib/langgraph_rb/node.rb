@@ -45,12 +45,18 @@ module LangGraphRB
       super(name, &(block || method(:default_llm_call)))
     end
 
-    def call(state, context: nil)
+    def call(state, context: nil, observers: [])
       # Auto-inject LLM config into the context for both default and custom blocks
       merged_context = (context || {}).merge(
         llm_client: @llm_client,
         system_prompt: @system_prompt
       )
+
+      begin
+        @llm_client&.set_observers(observers, @name) if observers.any?
+      rescue => e
+        raise NodeError, "Error setting observers for LLM client: #{e.message}"
+      end
 
       # Delegate to Node's dispatcher so arity (0/1/2) is handled uniformly
       case @callable.arity

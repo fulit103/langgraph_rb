@@ -60,6 +60,16 @@ module LangGraphRB
         # Override in subclasses if cleanup needed
       end
 
+      # Called when LLM requests occur
+      def on_llm_request(event)
+        # Override in subclasses
+      end
+
+      # Called when LLM responses occur
+      def on_llm_response(event)
+        # Override in subclasses
+      end
+
       protected
 
       # Helper method to create standardized event structure
