@@ -83,11 +83,61 @@ module LangGraphRB
 
     def normalize_messages(messages)
       messages.map do |m|
-        if m[:content].is_a?(Array)
-          { role: m[:role], content: m[:content] }
+        role = (m[:role] || m['role'])
+        content = m[:content] || m['content']
+
+        normalized = { role: role }
+
+        if content.is_a?(Array)
+          normalized[:content] = content
+        elsif content.nil?
+          normalized[:content] = nil
         else
-          { role: m[:role], content: m[:content].to_s }
+          normalized[:content] = content.to_s
         end
+
+        # Preserve assistant tool_calls; convert internal format back to OpenAI shape
+        tool_calls = m[:tool_calls] || m['tool_calls']
+        if tool_calls && role.to_s == 'assistant'
+          normalized[:tool_calls] = Array(tool_calls).map do |tc|
+            # Already OpenAI shape
+            if tc[:function] || tc['function']
+              fn = tc[:function] || tc['function']
+              raw_args = fn[:arguments] || fn['arguments']
+              args_str = raw_args.is_a?(String) ? raw_args : JSON.dump(raw_args || {})
+              {
+                id: (tc[:id] || tc['id']),
+                type: 'function',
+                function: {
+                  name: (fn[:name] || fn['name']).to_s,
+                  arguments: args_str
+                }
+              }
+            else
+              # Internal normalized shape { id:, name:, arguments: Hash|String }
+              raw_args = tc[:arguments] || tc['arguments']
+              args_str = raw_args.is_a?(String) ? raw_args : JSON.dump(raw_args || {})
+              {
+                id: (tc[:id] || tc['id']),
+                type: 'function',
+                function: {
+                  name: (tc[:name] || tc['name']).to_s,
+                  arguments: args_str
+                }
+              }
+            end
+          end
+        end
+
+        # Preserve tool message linkage
+        if role.to_s == 'tool'
+          tool_call_id = m[:tool_call_id] || m['tool_call_id']
+          name = m[:name] || m['name']
+          normalized[:tool_call_id] = tool_call_id if tool_call_id
+          normalized[:name] = name if name
+        end
+
+        normalized
       end
     end
 

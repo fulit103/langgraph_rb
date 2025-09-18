@@ -29,8 +29,6 @@ def run_chat_openai_tools
   chat = LangGraphRB::ChatOpenAI.new(model: ENV.fetch('OPENAI_MODEL', 'gpt-4o-mini'), temperature: 0)
   chat = chat.bind_tools(tools)
 
-  observers = [LangGraphRB::Observers::LoggerObserver.new(level: :debug)]
-
   graph = LangGraphRB::Graph.new do
     node :receive_input do |state|
       user_msg = { role: 'user', content: state[:input].to_s }
@@ -41,12 +39,6 @@ def run_chat_openai_tools
     llm_node :chat, llm_client: chat, system_prompt: "You are a movie assistant. Use tools when helpful." do |state, context|
       messages = state[:messages] || []
       messages = [{ role: 'system', content: context[:system_prompt] }] + messages if context[:system_prompt]
-
-      puts "########################"
-      puts "########################"
-      puts "messages: #{messages}"
-      puts "########################"
-      puts "########################"
 
       response = context[:llm_client].call(messages)
 
@@ -60,32 +52,18 @@ def run_chat_openai_tools
     end    
 
     node :tool do |state|
-      puts "TOOL CALL #########################"
-      tool_name = state[:tool_call][:name]
-      tool_args = state[:tool_call][:arguments]
+      tool_call = state[:tool_call]
+      tool_name = tool_call[:name]
+      tool_args = tool_call[:arguments]
+      tool_call_id = tool_call[:id]
+      # Dispatch via ToolBase API to keep consistent interface
+      tool_result = tools.call({ name: tool_name, arguments: tool_args })
 
-      puts "tool_name: #{tool_name}"
-      puts "tool_args: #{tool_args}"
-
-      puts "before tool call #########################"
-      tool_result = tools.send(tool_name, query: tool_args[:query])
-
-      puts "########################"
-      puts "########################"
-      puts "tool_name: #{tool_name}"
-      puts "tool_args: #{tool_args}"
-      puts "tool_result: #{tool_result}"
-      puts "########################"
-      puts "########################"
-
-      { messages: (state[:messages] || []) + [{ role: 'tool', content: tool_result.to_json, tool_calls: [] }] }
+      { messages: (state[:messages] || []) + [{ role: 'tool', content: tool_result.to_json, tool_call_id: tool_call_id, name: tool_name.to_s }],
+      tool_call: nil }
     end    
 
     node :final_answer do |state|
-      puts "TOOL RESULT #########################"
-      puts "last response: #{state[:last_response]}"
-      puts "########################"
-      puts "########################"
       { **state }
     end
 
@@ -106,7 +84,7 @@ def run_chat_openai_tools
   graph.compile!
 
   start = { messages: [], input: "Find details about 'The Matrix'" }
-  result = graph.invoke(start, observers: observers)
+  result = graph.invoke(start)
   puts "Messages:"
   (result[:messages] || []).each do |m|
     if m[:role] == 'assistant' && m[:tool_calls]
@@ -116,9 +94,6 @@ def run_chat_openai_tools
       puts "- #{m[:role]}: #{m[:content]}"
     end
   end
-
-  puts "\nFull result:"
-  puts result
 end
 
 run_chat_openai_tools
