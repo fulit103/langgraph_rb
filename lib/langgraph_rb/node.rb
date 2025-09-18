@@ -81,10 +81,23 @@ module LangGraphRB
 
       response = (context[:llm_client] || @llm_client).call(messages)
 
-      {
-        messages: [{ role: 'assistant', content: response }],
-        last_response: response
-      }
+      if response.is_a?(Hash) && response[:tool_calls]
+        assistant_msg = {
+          role: 'assistant',
+          content: nil,
+          tool_calls: response[:tool_calls]
+        }
+        {
+          messages: (state[:messages] || []) + [assistant_msg],
+          tool_call: response[:tool_calls].first
+        }
+      else
+        assistant_msg = { role: 'assistant', content: response.to_s }
+        {
+          messages: (state[:messages] || []) + [assistant_msg],
+          last_response: response.to_s
+        }
+      end
     end
   end
 
@@ -105,14 +118,19 @@ module LangGraphRB
       
       return { error: "No tool call found" } unless tool_call
 
-      result = @tool.call(tool_call[:args])
+      # Normalize expected structure for tool dispatch
+      normalized = normalize_tool_call(tool_call)
+      result = @tool.call(normalized)
       
+      tool_message = {
+        role: 'tool',
+        content: result.to_s,
+        tool_call_id: normalized[:id],
+        name: normalized[:name]
+      }
+
       {
-        messages: [{
-          role: 'tool',
-          content: result.to_s,
-          tool_call_id: tool_call[:id]
-        }],
+        messages: (state[:messages] || []) + [tool_message],
         tool_result: result
       }
     end
@@ -127,6 +145,32 @@ module LangGraphRB
       end
       
       nil
+    end
+
+    def normalize_tool_call(call)
+      # Supports shapes from OpenAI and our internal format
+      if call.is_a?(Hash)
+        if call[:name] && call[:arguments]
+          return {
+            id: call[:id],
+            name: call[:name].to_sym,
+            arguments: call[:arguments]
+          }
+        elsif call[:function]
+          return {
+            id: call[:id],
+            name: (call.dig(:function, :name) || call.dig('function', 'name')).to_sym,
+            arguments: call.dig(:function, :arguments) || call.dig('function', 'arguments')
+          }
+        elsif call[:args]
+          return {
+            id: call[:id],
+            name: (call[:name] || call['name']).to_sym,
+            arguments: call[:args]
+          }
+        end
+      end
+      call
     end
   end
 end 

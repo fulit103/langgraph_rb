@@ -1,8 +1,9 @@
 PATH
   remote: .
   specs:
-    langgraph_rb (0.1.2)
+    langgraph_rb (0.1.4)
       json (~> 2.0)
+      openai (~> 0.24.0)
 
 GEM
   remote: https://rubygems.org/
@@ -10,6 +11,7 @@ GEM
     ast (2.4.3)
     coderay (1.1.3)
     concurrent-ruby (1.3.5)
+    connection_pool (2.5.4)
     diff-lcs (1.6.2)
     json (2.13.2)
     langfuse (0.1.1)
@@ -18,6 +20,8 @@ GEM
     language_server-protocol (3.17.0.5)
     lint_roller (1.1.0)
     method_source (1.1.0)
+    openai (0.24.0)
+      connection_pool
     parallel (1.27.0)
     parser (3.3.9.0)
       ast (~> 2.4.1)
@@ -71,6 +75,7 @@ DEPENDENCIES
   bundler (~> 2.0)
   langfuse (~> 0.1)
   langgraph_rb!
+  openai (~> 0.24.0)
   pry (~> 0.14)
   rake (~> 13.0)
   rspec (~> 3.0)
