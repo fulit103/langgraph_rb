@@ -123,10 +123,11 @@ def basic_example
     }
 
     # All responses go back to waiting for input (except farewell)
-    edge :handle_greeting, :receive_input
-    edge :handle_help, :receive_input  
-    edge :handle_weather, :receive_input
-    edge :general_response, :receive_input
+    set_finish_point :handle_greeting
+    set_finish_point :handle_farewell
+    set_finish_point :handle_help
+    set_finish_point :handle_weather
+    set_finish_point :general_response
   end
 
   # Compile the graph
@@ -205,7 +206,9 @@ def streaming_example
 end
 
 # Run examples
-if __FILE__ == $0
-  basic_example
-  streaming_example
-end 
+# if __FILE__ == $0
+#   basic_example
+#   streaming_example
+# end 
+
+basic_example

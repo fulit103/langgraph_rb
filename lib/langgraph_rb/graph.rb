@@ -149,7 +149,15 @@ module LangGraphRB
         when Edge
           lines << "    #{edge.from} --> #{edge.to}"
         when ConditionalEdge
-          lines << "    #{edge.from} --> |condition| #{edge.from}_decision{condition}"
+          decision_name = "#{edge.from}_decision"
+          # Connect source to decision node with a label
+          lines << "    #{edge.from} -- condition --> #{decision_name}{\"condition\"}"
+          # Add labeled branches from decision to each mapped destination
+          if edge.path_map && !edge.path_map.empty?
+            edge.path_map.each do |label, destination|
+              lines << "    #{decision_name} -- #{label} --> #{destination}"
+            end
+          end
         when FanOutEdge
           edge.destinations.each do |dest|
             lines << "    #{edge.from} --> #{dest}"
