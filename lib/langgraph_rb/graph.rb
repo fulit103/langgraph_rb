@@ -214,7 +214,10 @@ module LangGraphRB
           validate_node_exists!(edge.to)
         when ConditionalEdge
           validate_node_exists!(edge.from)
-          # Path map targets will be validated at runtime
+          # If a static path_map is provided, validate mapped destinations now
+          if edge.path_map && !edge.path_map.empty?
+            edge.path_map.values.each { |dest| validate_node_exists!(dest) }
+          end
         when FanOutEdge
           validate_node_exists!(edge.from)
           edge.destinations.each { |dest| validate_node_exists!(dest) }
@@ -226,6 +229,12 @@ module LangGraphRB
         case edge
         when Edge
           [edge.to]
+        when ConditionalEdge
+          if edge.path_map && !edge.path_map.empty?
+            edge.path_map.values
+          else
+            []
+          end
         when FanOutEdge
           edge.destinations
         else
@@ -264,11 +273,17 @@ module LangGraphRB
         case edge
         when Edge
           reachable += find_reachable_nodes(edge.to, visited.dup)
+        when ConditionalEdge
+          # If a static path_map is provided, consider all mapped destinations reachable
+          if edge.path_map && !edge.path_map.empty?
+            edge.path_map.values.each do |dest|
+              reachable += find_reachable_nodes(dest, visited.dup)
+            end
+          end
         when FanOutEdge
           edge.destinations.each do |dest|
             reachable += find_reachable_nodes(dest, visited.dup)
-          end
-        # ConditionalEdge paths are dynamic, so we can't pre-validate them
+          end        
         end
       end
       
