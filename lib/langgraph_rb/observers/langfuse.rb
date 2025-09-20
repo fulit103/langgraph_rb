@@ -67,6 +67,7 @@ module LangGraphRB
         span.input = safe_state(data[:state_before])
         span.output = safe_state(data[:state_after])
         span.metadata = data
+        span.end_time = Time.now.utc
         Langfuse.update_span(span)
       rescue => _e
       end
@@ -82,6 +83,7 @@ module LangGraphRB
         return unless span
 
         span.metadata = event.to_h
+        span.end_time = Time.now.utc
         Langfuse.update_span(span)
       rescue => _e
       end
@@ -154,6 +156,7 @@ module LangGraphRB
           generation.output = data
         end
 
+        generation.end_time = Time.now.utc
         Langfuse.update_generation(generation)
 
         with_records_lock do
