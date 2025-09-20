@@ -94,12 +94,19 @@ module LangGraphRB
         end
         return unless record && record[:span]
 
+        # Prefer normalized payload from LLMBase implementations (e.g., ChatOpenAI)
+        input_payload = if data.is_a?(Hash)
+          data[:input] || data[:messages] || (data[:request] && data[:request][:messages])
+        else
+          data
+        end
+
         generation = Langfuse.generation(
           name: "llm-request-#{node_name}",
           trace_id: @trace&.id,
           parent_observation_id: record[:span].id,
           model: data[:model],
-          input: data[:messages],
+          input: input_payload,
           metadata: (data.respond_to?(:to_h) ? data.to_h : data)
         )
 
@@ -119,13 +126,25 @@ module LangGraphRB
         generation = record[:generation]
 
         if data.is_a?(Hash)
-          generation.output = data.dig(:choices, 0, :message, :content)
-          if data[:usage]
+          # Prefer normalized payload keys first
+          if data.key?(:output)
+            generation.output = data[:output]
+          else
+            # Fallback to OpenAI-style response structure
+            generation.output = data.dig(:choices, 0, :message, :content)
+          end
+
+          # Usage: support both normalized top-level and OpenAI usage block
+          prompt_tokens = data[:prompt_tokens] || data.dig(:usage, :prompt_tokens)
+          completion_tokens = data[:completion_tokens] || data.dig(:usage, :completion_tokens)
+          total_tokens = data[:total_tokens] || data.dig(:usage, :total_tokens)
+
+          if prompt_tokens || completion_tokens || total_tokens
             begin
               generation.usage = Langfuse::Models::Usage.new(
-                prompt_tokens: data.dig(:usage, :prompt_tokens),
-                completion_tokens: data.dig(:usage, :completion_tokens),
-                total_tokens: data.dig(:usage, :total_tokens)
+                prompt_tokens: prompt_tokens,
+                completion_tokens: completion_tokens,
+                total_tokens: total_tokens
               )
             rescue => _e
               # best-effort usage mapping
