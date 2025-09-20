@@ -1,4 +1,6 @@
 #!/usr/bin/env ruby
+require 'pry'
+require 'pry-byebug'
 require_relative '../lib/langgraph_rb'
 
 class MovieInfoTool < LangGraphRB::ToolBase
@@ -24,7 +26,7 @@ class MovieInfoTool < LangGraphRB::ToolBase
 end
 
 def run_chat_openai_tools
-  tools = MovieInfoTool.new(api_key: ENV['TMDB_API_KEY'] || 'demo')
+  tools = [MovieInfoTool.new(api_key: ENV['TMDB_API_KEY'] || 'demo')]
 
   chat = LangGraphRB::ChatOpenAI.new(model: ENV.fetch('OPENAI_MODEL', 'gpt-4o-mini'), temperature: 0)
   chat = chat.bind_tools(tools)
@@ -51,17 +53,29 @@ def run_chat_openai_tools
       end
     end    
 
-    node :tool do |state|
-      tool_call = state[:tool_call]
-      tool_name = tool_call[:name]
-      tool_args = tool_call[:arguments]
-      tool_call_id = tool_call[:id]
-      # Dispatch via ToolBase API to keep consistent interface
-      tool_result = tools.call({ name: tool_name, arguments: tool_args })
+    # node :tool do |state|
+    #   tool_call = state[:tool_call]
+    #   tool_name = tool_call[:name]
+    #   tool_args = tool_call[:arguments]
+    #   tool_call_id = tool_call[:id]
 
-      { messages: (state[:messages] || []) + [{ role: 'tool', content: tool_result.to_json, tool_call_id: tool_call_id, name: tool_name.to_s }],
-      tool_call: nil }
-    end    
+    #   puts "TOOL CALL #########################"
+    #   puts "tool_name: #{tool_name}"
+    #   puts "tool_args: #{tool_args}"
+    #   puts "tool_call_id: #{tool_call_id}"
+    #   puts "########################"
+    #   puts "########################"
+      
+    #   tool_method_name = tool_name.to_s.split('__').last
+
+    #   # Dispatch via ToolBase API to keep consistent interface
+    #   tool_result = tools.call({ name: tool_method_name, arguments: tool_args })
+
+    #   { messages: (state[:messages] || []) + [{ role: 'tool', content: tool_result.to_json, tool_call_id: tool_call_id, name: tool_name.to_s }],
+    #   tool_call: nil }
+    # end
+
+    tool_node :tool, tools: tools
 
     node :final_answer do |state|
       { **state }

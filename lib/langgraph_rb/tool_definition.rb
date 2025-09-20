@@ -8,7 +8,8 @@ module LangGraphRB
     end
 
     def define_function(name, description: "", &block)
-      fn_name = name.to_sym
+      class_name = self.name
+      fn_name = "#{class_name}__#{name}".to_sym
       @__tool_functions ||= {}
       @__tool_functions[fn_name] = {
         name: fn_name,

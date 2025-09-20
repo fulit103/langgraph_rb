@@ -42,11 +42,11 @@ module LangGraphRB
       @nodes[name] = LLMNode.new(name, llm_client: llm_client, system_prompt: system_prompt, &block)
     end
 
-    def tool_node(name, tool:, &block)
+    def tool_node(name, tools:, &block)
       name = name.to_sym
       raise GraphError, "Node '#{name}' already exists" if @nodes.key?(name)
       
-      @nodes[name] = ToolNode.new(name, tool: tool, &block)
+      @nodes[name] = ToolNode.new(name, tools: tools, &block)
     end
 
     def edge(from, to)

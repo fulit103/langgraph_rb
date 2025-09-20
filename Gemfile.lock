@@ -9,6 +9,7 @@ GEM
   remote: https://rubygems.org/
   specs:
     ast (2.4.3)
+    byebug (12.0.0)
     coderay (1.1.3)
     concurrent-ruby (1.3.5)
     connection_pool (2.5.4)
@@ -30,6 +31,9 @@ GEM
     pry (0.15.2)
       coderay (~> 1.1)
       method_source (~> 1.0)
+    pry-byebug (3.11.0)
+      byebug (~> 12.0)
+      pry (>= 0.13, < 0.16)
     racc (1.8.1)
     rainbow (3.1.1)
     rake (13.3.0)
@@ -77,6 +81,7 @@ DEPENDENCIES
   langgraph_rb!
   openai (~> 0.24.0)
   pry (~> 0.14)
+  pry-byebug
   rake (~> 13.0)
   rspec (~> 3.0)
   rubocop (~> 1.0)

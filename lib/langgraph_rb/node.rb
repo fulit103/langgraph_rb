@@ -103,10 +103,10 @@ module LangGraphRB
 
   # Specialized node for tool calls
   class ToolNode < Node
-    attr_reader :tool
+    attr_reader :tools
 
-    def initialize(name, tool:, &block)
-      @tool = tool
+    def initialize(name, tools:, &block)
+      @tools = tools
       super(name, &(block || method(:default_tool_call)))
     end
 
@@ -120,7 +120,8 @@ module LangGraphRB
 
       # Normalize expected structure for tool dispatch
       normalized = normalize_tool_call(tool_call)
-      result = @tool.call(normalized)
+      tool = @tools.find { |t| t.class.name == normalized[:class_name] }
+      result = tool.call(normalized)
       
       tool_message = {
         role: 'tool',
@@ -130,8 +131,9 @@ module LangGraphRB
       }
 
       {
+        **state,
         messages: (state[:messages] || []) + [tool_message],
-        tool_result: result
+        tool_call: nil
       }
     end
 
@@ -151,9 +153,12 @@ module LangGraphRB
       # Supports shapes from OpenAI and our internal format
       if call.is_a?(Hash)
         if call[:name] && call[:arguments]
+          class_name = call[:name].to_s.split('__').first
+          name = call[:name].to_s.split('__').last
           return {
             id: call[:id],
-            name: call[:name].to_sym,
+            name: name.to_sym,
+            class_name: class_name,
             arguments: call[:arguments]
           }
         elsif call[:function]
