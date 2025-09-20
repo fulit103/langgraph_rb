@@ -9,6 +9,9 @@ require_relative 'langgraph_rb/stores/memory'
 require_relative 'langgraph_rb/observers/base'
 require_relative 'langgraph_rb/observers/logger'
 require_relative 'langgraph_rb/observers/structured'
+require_relative 'langgraph_rb/llm_base'
+require_relative 'langgraph_rb/chat_openai'
+require_relative 'langgraph_rb/tool_definition'
 
 module LangGraphRB
   class Error < StandardError; end
