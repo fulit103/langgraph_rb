@@ -12,27 +12,6 @@ Langfuse.configure do |config|
 end
 
 
-class LangfuseObserver < LangGraphRB::Observers::BaseObserver
-
-    def on_graph_start(event)
-        @trace ||= Langfuse.trace(
-            name: "graph-start2",
-            thread_id: event.thread_id,
-            metadata: event.to_h
-        )
-    end
-
-    def on_node_end(event)
-        span = Langfuse.span(
-            name: "node-#{event.node_name}",
-            trace_id: @trace.id,
-            input: event.to_h,            
-        )
-        Langfuse.update_span(span)        
-    end
-end
-
-
 def langfuse_example
   puts "########################################################"
   puts "########################################################"
@@ -82,7 +61,10 @@ def langfuse_example
   
   
   graph.compile!
-  result = graph.invoke({ message: "Hello World", value:  31}, observers: [LangfuseObserver.new])
+  result = graph.invoke(
+    { message: "Hello World", value:  31},
+    observers: [LangGraphRB::Observers::LangfuseObserver.new(name: 'langfuse-example')]
+  )
   puts "Result: #{result}"
   puts "########################################################"
   puts "########################################################"

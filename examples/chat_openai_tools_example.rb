@@ -1,7 +1,17 @@
 #!/usr/bin/env ruby
 require 'pry'
 require 'pry-byebug'
+require 'langfuse'
 require_relative '../lib/langgraph_rb'
+
+url = 'https://us.cloud.langfuse.com'
+
+Langfuse.configure do |config|
+    config.public_key = ENV['LANGFUSE_PUBLIC_KEY']  # e.g., 'pk-lf-...'
+    config.secret_key = ENV['LANGFUSE_SECRET_KEY']  # e.g., 'sk-lf-...'
+    config.host = url
+    config.debug = true # Enable debug logging
+end
 
 class MovieInfoTool < LangGraphRB::ToolBase
   define_function :search_movie, description: "MovieInfoTool: Search for a movie by title" do
@@ -30,6 +40,8 @@ def run_chat_openai_tools
 
   chat = LangGraphRB::ChatOpenAI.new(model: ENV.fetch('OPENAI_MODEL', 'gpt-4o-mini'), temperature: 0)
   chat = chat.bind_tools(tools)
+
+  observers = [LangGraphRB::Observers::LangfuseObserver.new(name: 'chat-openai-tools-example')]
 
   graph = LangGraphRB::Graph.new do
     node :receive_input do |state|
@@ -65,7 +77,7 @@ def run_chat_openai_tools
   graph.draw_mermaid
 
   start = { messages: [], input: "Find details about 'The Matrix'" }
-  result = graph.invoke(start)
+  result = graph.invoke(start, observers: observers)
   puts "Messages:"
   (result[:messages] || []).each do |m|
     if m[:role] == 'assistant' && m[:tool_calls]
