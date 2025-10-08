@@ -54,6 +54,16 @@ module LangGraphRB
         end
       end
     end
+
+    def notify_llm_error(payload)
+      @observers.each do |observer|
+        begin
+          observer.on_llm_error(payload, @node_name)
+        rescue => _e
+          # Ignore observer errors
+        end
+      end
+    end
   end
 end
 

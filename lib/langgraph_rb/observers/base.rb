@@ -70,6 +70,10 @@ module LangGraphRB
         # Override in subclasses
       end
 
+      def on_llm_error(event)
+        # Override in subclasses
+      end
+
       protected
 
       # Helper method to create standardized event structure

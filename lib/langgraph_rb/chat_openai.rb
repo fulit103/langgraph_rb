@@ -77,7 +77,13 @@ module LangGraphRB
       else
         text_content
       end
+    rescue => e
+      notify_llm_error({
+        error: e.message
+      })
+      raise e
     end
+
 
     private
 
