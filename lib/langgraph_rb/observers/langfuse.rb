@@ -165,6 +165,24 @@ module LangGraphRB
       rescue => _e
       end
 
+      def on_llm_error(data, node_name)
+        record = with_records_lock do
+          stack = @records_by_node[node_name]
+          stack.empty? ? nil : stack[-1]
+        end
+        return unless record && record[:generation]
+
+        generation = record[:generation]        
+        generation.output = data[:error]
+        generation.end_time = Time.now.utc
+        Langfuse.update_generation(generation)
+
+        with_records_lock do
+          record[:generation] = nil
+        end
+      rescue => _e
+      end
+
       private
 
       def ensure_trace!(event)
