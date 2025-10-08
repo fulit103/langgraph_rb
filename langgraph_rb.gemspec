@@ -33,7 +33,6 @@ Gem::Specification.new do |spec|
 
   # Runtime dependencies
   spec.add_dependency "json", "~> 2.0"
-  spec.add_dependency "openai", "~> 0.24.0"
 
   # Development dependencies
   spec.add_development_dependency "bundler", "~> 2.0"
