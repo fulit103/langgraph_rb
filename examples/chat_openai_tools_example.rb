@@ -3,9 +3,10 @@ require 'pry'
 require 'pry-byebug'
 require 'langfuse'
 require_relative '../lib/langgraph_rb'
-require 'openai'
-require_relative '../lib/langgraph_rb/chat_openai'
-
+#require 'openai'
+#require_relative '../lib/langgraph_rb/chat_openai'
+require "openai"
+require_relative '../lib/langgraph_rb/chat_ruby_openai'
 
 url = 'https://us.cloud.langfuse.com'
 
@@ -43,7 +44,8 @@ end
 def run_chat_openai_tools
   tools = [Tool::MovieInfoTool.new(api_key: ENV['TMDB_API_KEY'] || 'demo')]
 
-  chat = LangGraphRB::ChatOpenAI.new(model: ENV.fetch('OPENAI_MODEL', 'gpt-4o-mini'), temperature: 0)
+  #chat = LangGraphRB::ChatOpenAI.new(model: ENV.fetch('OPENAI_MODEL', 'gpt-4o-mini'), temperature: 0)
+  chat = LangGraphRB::ChatRubyOpenAI.new(model: ENV.fetch('OPENAI_MODEL', 'gpt-4o-mini'), temperature: 0)
   chat = chat.bind_tools(tools)
 
   observers = [LangGraphRB::Observers::LangfuseObserver.new(name: 'chat-openai-tools-example')]

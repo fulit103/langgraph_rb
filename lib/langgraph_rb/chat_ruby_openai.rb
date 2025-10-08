@@ -47,15 +47,15 @@ module LangGraphRB
         name: 'OpenAI::ChatCompletion',
         model: @model,
         model_parameters: { temperature: @temperature },
-        input: request_payload[:messages]
+        input: request_payload
       })
 
       # ruby-openai 8.1.x: client.chat(parameters: {...}) returns a Hash
       response = @client.chat(parameters: request_payload)
 
       message = extract_message_from_response(response)
-      tool_calls = message[:tool_calls]
-      text_content = message[:content]
+      tool_calls = message["tool_calls"]
+      text_content = message["content"]
 
       usage = extract_usage_from_response(response)
       notify_llm_response({
@@ -68,9 +68,9 @@ module LangGraphRB
       if tool_calls && !tool_calls.empty?
         normalized_calls = tool_calls.map do |tc|
           {
-            id: tc[:id],
-            name: tc[:function][:name],
-            arguments: parse_tool_arguments(tc[:function][:arguments])
+            id: tc["id"],
+            name: tc["function"]["name"],
+            arguments: parse_tool_arguments(tc["function"]["arguments"])
           }
         end
         { tool_calls: normalized_calls }

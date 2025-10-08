@@ -1,0 +1,1 @@
+gem 'ruby-openai', '~> 8.1.0'

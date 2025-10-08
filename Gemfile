@@ -2,7 +2,6 @@ source 'https://rubygems.org'
 
 gemspec
 
-gem 'openai', '~> 0.24.0'
 
 group :development, :test do
   gem 'rspec', '~> 3.0'
