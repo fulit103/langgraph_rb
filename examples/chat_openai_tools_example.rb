@@ -3,6 +3,9 @@ require 'pry'
 require 'pry-byebug'
 require 'langfuse'
 require_relative '../lib/langgraph_rb'
+require 'openai'
+require_relative '../lib/langgraph_rb/chat_openai'
+
 
 url = 'https://us.cloud.langfuse.com'
 
@@ -13,30 +16,32 @@ Langfuse.configure do |config|
     config.debug = true # Enable debug logging
 end
 
-class MovieInfoTool < LangGraphRB::ToolBase
-  define_function :search_movie, description: "MovieInfoTool: Search for a movie by title" do
-    property :query, type: "string", description: "The movie title to search for", required: true
-  end
+module Tool
+  class MovieInfoTool < LangGraphRB::ToolBase
+    define_function :search_movie, description: "MovieInfoTool: Search for a movie by title" do
+      property :query, type: "string", description: "The movie title to search for", required: true
+    end
 
-  define_function :get_movie_details, description: "MovieInfoTool: Get detailed information about a specific movie" do
-    property :movie_id, type: "integer", description: "The TMDb ID of the movie", required: true
-  end
+    define_function :get_movie_details, description: "MovieInfoTool: Get detailed information about a specific movie" do
+      property :movie_id, type: "integer", description: "The TMDb ID of the movie", required: true
+    end
 
-  def initialize(api_key: "demo")
-    @api_key = api_key
-  end
+    def initialize(api_key: "demo")
+      @api_key = api_key
+    end
 
-  def search_movie(query:)
-    tool_response({ results: [ { id: 603, title: query, year: 1999 } ] })
-  end
+    def search_movie(query:)
+      tool_response({ results: [ { id: 603, title: query, year: 1999 } ] })
+    end
 
-  def get_movie_details(movie_id:)
-    tool_response({ id: movie_id, title: "The Matrix", overview: "A computer hacker learns the truth of reality." })
+    def get_movie_details(movie_id:)
+      tool_response({ id: movie_id, title: "The Matrix", overview: "A computer hacker learns the truth of reality." })
+    end
   end
 end
 
 def run_chat_openai_tools
-  tools = [MovieInfoTool.new(api_key: ENV['TMDB_API_KEY'] || 'demo')]
+  tools = [Tool::MovieInfoTool.new(api_key: ENV['TMDB_API_KEY'] || 'demo')]
 
   chat = LangGraphRB::ChatOpenAI.new(model: ENV.fetch('OPENAI_MODEL', 'gpt-4o-mini'), temperature: 0)
   chat = chat.bind_tools(tools)
