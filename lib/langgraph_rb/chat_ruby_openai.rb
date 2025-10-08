@@ -33,10 +33,11 @@ module LangGraphRB
       end
 
       request_payload = {
-        model: @model,
-        temperature: @temperature,
+        model: @model,       
         messages: normalize_messages(messages)
       }
+
+      request_payload[:temperature] = @temperature if @temperature.present?
 
       if tool_schemas && !tool_schemas.empty?
         request_payload[:tools] = tool_schemas
@@ -78,7 +79,7 @@ module LangGraphRB
         text_content
       end
     rescue => e
-      notify_llm_error({ error: e.message })
+      notify_llm_error({ error: e.response&.dig(:body) || e.message })
       raise e
     end
 
