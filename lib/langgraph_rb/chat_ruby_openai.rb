@@ -1,33 +1,25 @@
 begin
   require 'openai'
 rescue LoadError
-  raise "LangGraphRB::ChatOpenAI requires gem 'openai' (~> 0.24). Add it to your Gemfile."
+  raise "LangGraphRB::ChatRubyOpenAI requires gem 'ruby-openai' (~> 8.1). Add it to your Gemfile."
 end
+
 require_relative 'llm_base'
 
 module LangGraphRB
-  # ChatOpenAI wrapper compatible with LLMBase, supporting tool binding
-  class ChatOpenAI < LLMBase
+  class ChatRubyOpenAI < LLMBase
     def initialize(model:, temperature: 0.0, api_key: ENV['OPENAI_API_KEY'], client: nil)
       super(model: model, temperature: temperature)
-      @client = client || OpenAI::Client.new(api_key: api_key)
-
-      unless @client.respond_to?(:chat) && @client.chat.respond_to?(:completions)
-        raise "LangGraphRB::ChatOpenAI expects 'openai' gem ~> 0.24 (client.chat.completions.create)"
-      end
+      @client = client || OpenAI::Client.new(access_token: api_key)
     end
 
-    # Returns a new instance with tools bound (non-destructive)
     def bind_tools(tools)
-      dup_instance = self.class.new(model: @model, temperature: @temperature)      
+      dup_instance = self.class.new(model: @model, temperature: @temperature)
       dup_instance.instance_variable_set(:@client, @client)
       dup_instance.instance_variable_set(:@bound_tools, Array(tools))
       dup_instance
     end
 
-    # messages: array of { role: 'system'|'user'|'assistant'|'tool', content: string, tool_calls?: [...] }
-    # tools: optional array of tool definitions (objects responding to .to_openai_tool_schema)
-    # Returns assistant text string or a tool-call envelope hash when tool calls are produced
     def call(messages, tools: nil)
       raise ArgumentError, 'messages must be an Array' unless messages.is_a?(Array)
 
@@ -58,12 +50,12 @@ module LangGraphRB
         input: request_payload[:messages]
       })
 
-      # openai 0.24.0 uses client.chat.completions.create(params)
-      response = @client.chat.completions.create(request_payload)
+      # ruby-openai 8.1.x: client.chat(parameters: {...}) returns a Hash
+      response = @client.chat(parameters: request_payload)
 
       message = extract_message_from_response(response)
       tool_calls = message[:tool_calls]
-      text_content = message[:content] 
+      text_content = message[:content]
 
       usage = extract_usage_from_response(response)
       notify_llm_response({
@@ -86,12 +78,9 @@ module LangGraphRB
         text_content
       end
     rescue => e
-      notify_llm_error({
-        error: e.message
-      })
+      notify_llm_error({ error: e.message })
       raise e
     end
-
 
     private
 
@@ -110,11 +99,9 @@ module LangGraphRB
           normalized[:content] = content.to_s
         end
 
-        # Preserve assistant tool_calls; convert internal format back to OpenAI shape
         tool_calls = m[:tool_calls] || m['tool_calls']
         if tool_calls && role.to_s == 'assistant'
           normalized[:tool_calls] = Array(tool_calls).map do |tc|
-            # Already OpenAI shape
             if tc[:function] || tc['function']
               fn = tc[:function] || tc['function']
               raw_args = fn[:arguments] || fn['arguments']
@@ -128,7 +115,6 @@ module LangGraphRB
                 }
               }
             else
-              # Internal normalized shape { id:, name:, arguments: Hash|String }
               raw_args = tc[:arguments] || tc['arguments']
               args_str = raw_args.is_a?(String) ? raw_args : JSON.dump(raw_args || {})
               {
@@ -143,7 +129,6 @@ module LangGraphRB
           end
         end
 
-        # Preserve tool message linkage
         if role.to_s == 'tool'
           tool_call_id = m[:tool_call_id] || m['tool_call_id']
           name = m[:name] || m['name']
@@ -168,42 +153,17 @@ module LangGraphRB
     end
 
     def extract_message_from_response(response)
-      # Handles both Hash responses and typed OpenAI::Models::* objects
-      if response.respond_to?(:choices)
-        first_choice = response.choices.first
-        if first_choice.respond_to?(:[])
-          first_choice[:message] || first_choice['message'] || {}
-        else
-          # In some versions, choices elements are structs with #message
-          first_choice.message
-        end
-      else
-        (response['choices'] || []).dig(0, 'message') || {}
-      end
+      (response['choices'] || []).dig(0, 'message') || {}
     end
 
     def extract_usage_from_response(response)
-      usage = if response.respond_to?(:usage)
-        response.usage
-      else
-        response['usage']
-      end
-
+      usage = response['usage']
       return { prompt_tokens: nil, completion_tokens: nil, total_tokens: nil } unless usage
-
-      if usage.respond_to?(:[]) || usage.is_a?(Hash)
-        {
-          prompt_tokens: usage[:prompt_tokens] || usage['prompt_tokens'],
-          completion_tokens: usage[:completion_tokens] || usage['completion_tokens'],
-          total_tokens: usage[:total_tokens] || usage['total_tokens']
-        }
-      else
-        {
-          prompt_tokens: usage.prompt_tokens,
-          completion_tokens: usage.completion_tokens,
-          total_tokens: usage.total_tokens
-        }
-      end
+      {
+        prompt_tokens: usage['prompt_tokens'],
+        completion_tokens: usage['completion_tokens'],
+        total_tokens: usage['total_tokens']
+      }
     end
   end
 end
