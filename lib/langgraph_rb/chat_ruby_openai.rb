@@ -33,10 +33,11 @@ module LangGraphRB
       end
 
       request_payload = {
-        model: @model,
-        temperature: @temperature,
+        model: @model,       
         messages: normalize_messages(messages)
       }
+
+      request_payload[:temperature] = @temperature if @temperature.present?
 
       if tool_schemas && !tool_schemas.empty?
         request_payload[:tools] = tool_schemas
@@ -47,15 +48,15 @@ module LangGraphRB
         name: 'OpenAI::ChatCompletion',
         model: @model,
         model_parameters: { temperature: @temperature },
-        input: request_payload[:messages]
+        input: request_payload
       })
 
       # ruby-openai 8.1.x: client.chat(parameters: {...}) returns a Hash
       response = @client.chat(parameters: request_payload)
 
       message = extract_message_from_response(response)
-      tool_calls = message[:tool_calls]
-      text_content = message[:content]
+      tool_calls = message["tool_calls"]
+      text_content = message["content"]
 
       usage = extract_usage_from_response(response)
       notify_llm_response({
@@ -68,9 +69,9 @@ module LangGraphRB
       if tool_calls && !tool_calls.empty?
         normalized_calls = tool_calls.map do |tc|
           {
-            id: tc[:id],
-            name: tc[:function][:name],
-            arguments: parse_tool_arguments(tc[:function][:arguments])
+            id: tc["id"],
+            name: tc["function"]["name"],
+            arguments: parse_tool_arguments(tc["function"]["arguments"])
           }
         end
         { tool_calls: normalized_calls }
@@ -78,7 +79,7 @@ module LangGraphRB
         text_content
       end
     rescue => e
-      notify_llm_error({ error: e.message })
+      notify_llm_error({ error: e.response&.dig(:body) || e.message })
       raise e
     end
 

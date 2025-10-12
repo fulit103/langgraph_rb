@@ -158,7 +158,7 @@ module LangGraphRB
           return {
             id: call[:id],
             name: name.to_sym,
-            class_name: class_name,
+            class_name: class_name.gsub('--', '::'),
             arguments: call[:arguments]
           }
         elsif call[:function]
